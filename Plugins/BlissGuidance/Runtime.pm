@@ -118,6 +118,10 @@ sub _reap {
     return unless $pid;
     return if waitpid($pid, WNOHANG) == $pid;
     kill 'TERM', $pid;
+    return if waitpid($pid, WNOHANG) == $pid;
+    # The host deadline covers the complete native session.  A provider that
+    # ignores TERM must not turn a 500 ms request into an unbounded wait.
+    kill 'KILL', $pid;
     waitpid($pid, 0);
 }
 

@@ -5,6 +5,7 @@ use File::Spec;
 use File::Temp qw(tempdir);
 use Test::More;
 use Config qw(%Config);
+use Time::HiRes qw(time);
 
 use lib "$FindBin::Bin/..";
 
@@ -49,5 +50,26 @@ my $result = Plugins::BlissGuidance::Runtime::score_batch({
 ok($result->{valid}, 'bounded JSONL session succeeds');
 is($result->{signals}->[0]->{candidate_id}, 'track-a', 'signal is returned for the supplied candidate');
 is($result->{signals}->[0]->{observation}->{playcount}, 3, 'structured observation is preserved');
+
+pipe(my $ready_read, my $ready_write)
+    or die "cannot create stubborn provider fixture pipe: $!";
+my $stubborn_pid = fork();
+die "cannot fork stubborn provider fixture: $!" unless defined $stubborn_pid;
+if (!$stubborn_pid) {
+    close $ready_read;
+    $SIG{TERM} = 'IGNORE';
+    print {$ready_write} "ready\n";
+    close $ready_write;
+    select undef, undef, undef, 5;
+    exit 0;
+}
+close $ready_write;
+<$ready_read> eq "ready\n" or die 'stubborn provider fixture did not initialize';
+close $ready_read;
+my $started = time();
+Plugins::BlissGuidance::Runtime::_reap($stubborn_pid);
+my $elapsed_ms = int((time() - $started) * 1000);
+cmp_ok($elapsed_ms, '<', 250,
+    'an unresponsive provider cannot extend the host deadline while ignoring TERM');
 
 done_testing();
