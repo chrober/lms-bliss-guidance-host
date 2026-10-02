@@ -1,0 +1,45 @@
+[%#
+  Canonical schema-driven guidance provider settings controls.
+  The consuming host supplies guidance_provider_sections from
+  Plugins::BlissGuidance::SettingsModel::provider_sections().
+%]
+[% FOREACH provider IN guidance_provider_sections %]
+  <div class="settingGroup guidance-provider-section" data-guidance-provider="[% provider.provider_id | html %]">
+    <div class="prefHead">[% provider.display_name | html %]</div>
+    [% IF provider.settings_uri %]
+      <div class="prefs">
+        <a class="guidance-provider-settings-link" href="/[% provider.settings_uri | html %]">[% provider.settings_link_label | html %]</a>
+      </div>
+    [% END %]
+    [% IF provider.available %]
+      <div class="prefs guidance-provider-enable">
+        <label>
+          <input type="checkbox" name="pref_guidance_[% provider.provider_id | html %]_enabled" value="1" data-guidance-enable [% IF provider.enabled %]checked[% END %]>
+          Use this provider
+        </label>
+      </div>
+      <div class="guidance-provider-controls[% UNLESS provider.enabled %] guidance-provider-controls-hidden[% END %]" data-guidance-controls>
+        [% FOREACH control IN provider.controls %]
+          <div class="guidance-provider-control" data-guidance-control="[% control.key | html %]">
+            <div class="prefHead">[% control.label | html %]</div>
+            [% IF control.help %]<div class="prefDesc">[% control.help | html %]</div>[% END %]
+            <div class="prefs">
+              [% IF control.render_as == 'slider' %]
+                <input type="range" min="[% control.minimum | html %]" max="[% control.maximum | html %]" step="[% control.step | html %]" class="msk-slider" data-guidance-slider>
+                <input type="number" name="pref_guidance_[% provider.provider_id | html %]_[% control.key | html %]" id="[% control.form_id | html %]" value="[% control.effective_value | html %]" min="[% control.minimum | html %]" max="[% control.maximum | html %]" step="[% control.step | html %]" class="stdedit msk-slider-input" data-guidance-value data-guidance-inherited="[% control.inherited_value | html %]">
+              [% ELSIF control.render_as == 'number' %]
+                <input type="number" name="pref_guidance_[% provider.provider_id | html %]_[% control.key | html %]" id="[% control.form_id | html %]" value="[% control.effective_value | html %]" min="[% control.minimum | html %]" max="[% control.maximum | html %]" step="[% control.step | html %]" class="stdedit" data-guidance-value data-guidance-inherited="[% control.inherited_value | html %]">
+              [% END %]
+              <span id="[% control.marker_id | html %]" class="guidance-provider-origin" data-guidance-origin>Effective value source: [% control.origin_label | html %].</span>
+              [% IF control.show_reset %]
+                <button type="button" class="inputbutton guidance-provider-reset" data-guidance-reset>Use inherited default</button>
+              [% END %]
+            </div>
+          </div>
+        [% END %]
+      </div>
+    [% ELSE %]
+      <div class="prefDesc guidance-provider-unavailable">Unavailable: [% provider.diagnostic | html %]</div>
+    [% END %]
+  </div>
+[% END %]
