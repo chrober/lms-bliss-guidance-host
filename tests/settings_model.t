@@ -141,4 +141,25 @@ is($legacy_control->{label_token}, undef,
 is_deeply($legacy_control->{enum_values}, [],
     'non-enum controls expose a stable empty enum list to the canonical partial');
 
+my $invalid_discovery = {
+    providers => [
+        {
+            %{$discovery->{providers}[1]},
+            defaults => {
+                %{$discovery->{providers}[1]{defaults}},
+                last_played_horizon_days => 0,
+            },
+        },
+    ],
+};
+my $invalid_sections = Plugins::BlissGuidance::SettingsModel::provider_sections(
+    $invalid_discovery,
+    $host_state,
+    {},
+);
+ok(!$invalid_sections->[0]{policy_valid},
+    'an invalid provider default remains visibly diagnosed');
+ok(!$invalid_sections->[0]{enabled},
+    'an invalid provider policy follows the legacy disabled-controls state');
+
 done_testing();
