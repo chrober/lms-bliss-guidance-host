@@ -1,45 +1,41 @@
 [%#
-  Canonical schema-driven guidance provider settings controls.
-  The consuming host supplies guidance_provider_sections from
-  Plugins::BlissGuidance::SettingsModel::provider_sections().
+  Canonical schema-driven guidance-provider controls. The host supplies
+  guidance_provider_sections and host-localized guidance_ui string tokens.
+  The DOM/data contract deliberately preserves the established Better Call
+  Bliss and Lab Material Skin UX.
 %]
 [% FOREACH provider IN guidance_provider_sections %]
-  <div class="settingGroup guidance-provider-section" data-guidance-provider="[% provider.provider_id | html %]">
-    <div class="prefHead">[% provider.display_name | html %]</div>
-    [% IF provider.settings_uri %]
-      <div class="prefs">
-        <a class="guidance-provider-settings-link" href="/[% provider.settings_uri | html %]">[% provider.settings_link_label | html %]</a>
-      </div>
-    [% END %]
-    [% IF provider.available %]
-      <div class="prefs guidance-provider-enable">
-        <label>
-          <input type="checkbox" name="pref_guidance_[% provider.provider_id | html %]_enabled" value="1" data-guidance-enable [% IF provider.enabled %]checked[% END %]>
-          Use this provider
-        </label>
-      </div>
-      <div class="guidance-provider-controls[% UNLESS provider.enabled %] guidance-provider-controls-hidden[% END %]" data-guidance-controls>
-        [% FOREACH control IN provider.controls %]
-          <div class="guidance-provider-control" data-guidance-control="[% control.key | html %]">
-            <div class="prefHead">[% control.label | html %]</div>
-            [% IF control.help %]<div class="prefDesc">[% control.help | html %]</div>[% END %]
-            <div class="prefs">
-              [% IF control.render_as == 'slider' %]
-                <input type="range" min="[% control.minimum | html %]" max="[% control.maximum | html %]" step="[% control.step | html %]" class="msk-slider" data-guidance-slider>
-                <input type="number" name="pref_guidance_[% provider.provider_id | html %]_[% control.key | html %]" id="[% control.form_id | html %]" value="[% control.effective_value | html %]" min="[% control.minimum | html %]" max="[% control.maximum | html %]" step="[% control.step | html %]" class="stdedit msk-slider-input" data-guidance-value data-guidance-inherited="[% control.inherited_value | html %]">
-              [% ELSIF control.render_as == 'number' %]
-                <input type="number" name="pref_guidance_[% provider.provider_id | html %]_[% control.key | html %]" id="[% control.form_id | html %]" value="[% control.effective_value | html %]" min="[% control.minimum | html %]" max="[% control.maximum | html %]" step="[% control.step | html %]" class="stdedit" data-guidance-value data-guidance-inherited="[% control.inherited_value | html %]">
-              [% END %]
-              <span id="[% control.marker_id | html %]" class="guidance-provider-origin" data-guidance-origin>Effective value source: [% control.origin_label | html %].</span>
-              [% IF control.show_reset %]
-                <button type="button" class="inputbutton guidance-provider-reset" data-guidance-reset>Use inherited default</button>
-              [% END %]
-            </div>
-          </div>
+  <h3>[% provider.display_name | html %]</h3>
+  [% IF provider.available %]
+    <p style="color:#398439">[% guidance_ui.available_token | string %]</p>
+  [% ELSE %]
+    <p style="opacity:0.7">[% guidance_ui.unavailable_token | string(provider.diagnostic) %]</p>
+  [% END %]
+  [% IF provider.settings_uri %]
+    <p><a href="/[% provider.settings_uri | html %]">[% guidance_ui.settings_token | string(provider.display_name) %]</a></p>
+  [% END %]
+  [% WRAPPER settingGroup title=guidance_ui.enabled_token desc=guidance_ui.enabled_desc_token %]
+    <input type="checkbox" name="[% provider.enable_field_name | html %]" value="1" data-guidance-provider-controls="guidance-provider-controls-[% provider.provider_id | html %]" data-guidance-provider-controls-usable="[% IF provider.available && provider.policy_valid %]1[% ELSE %]0[% END %]"[% IF provider.enabled %] checked="checked"[% END %][% UNLESS provider.available && provider.policy_valid %] disabled[% END %]>
+  [% END %]
+  <div id="guidance-provider-controls-[% provider.provider_id | html %]" class="[% UNLESS provider.enabled %]hidden[% END %]">
+    [% FOREACH control IN provider.controls %]
+      [% WRAPPER settingGroup title=control.label_token desc=control.help_token %]
+        [% IF control.type == 'boolean' %]
+          <input type="checkbox" name="[% control.field_name | html %]" id="[% control.field_name | html %]" value="1"[% IF control.effective %] checked="checked"[% END %][% UNLESS provider.enabled && provider.available && provider.policy_valid %] disabled[% END %]>
+        [% ELSIF control.type == 'enum' %]
+          <select class="stdedit" name="[% control.field_name | html %]" id="[% control.field_name | html %]"[% UNLESS provider.enabled && provider.available && provider.policy_valid %] disabled[% END %]>
+            [% FOREACH option IN control.enum_values %]<option value="[% option | html %]"[% IF control.effective == option %] selected[% END %]>[% option | html %]</option>[% END %]
+          </select>
+        [% ELSE %]
+          <input type="number" min="[% control.minimum %]" max="[% control.maximum %]" step="[% control.step %]" class="stdedit[% IF control.render_as == 'slider' %] sliderInput_[% control.minimum %]_[% control.maximum %]_[% control.step %][% END %]" name="[% control.field_name | html %]" id="[% control.field_name | html %]" value="[% control.effective %]" size="6"[% UNLESS provider.enabled && provider.available && provider.policy_valid %] disabled[% END %]>
         [% END %]
-      </div>
-    [% ELSE %]
-      <div class="prefDesc guidance-provider-unavailable">Unavailable: [% provider.diagnostic | html %]</div>
+        <input type="hidden" name="[% control.inherit_field_name | html %]" id="[% control.inherit_field_name | html %]" value="0"[% UNLESS provider.enabled && provider.available && provider.policy_valid %] disabled[% END %]>
+        <input type="hidden" name="[% control.dirty_field_name | html %]" id="[% control.dirty_field_name | html %]" value="0"[% UNLESS provider.enabled && provider.available && provider.policy_valid %] disabled[% END %]>
+        <span id="guidance-origin-[% control.field_name | html %]" style="opacity:0.7" data-guidance-origin-prefix="[% guidance_ui.origin_prefix_token | string %]">[% guidance_ui.origin_prefix_token | string %] [% control.origin_label_token | string %].</span>
+        <span id="guidance-inherit-button-[% control.field_name | html %]"[% IF control.origin == 'provider_default' %] class="hidden"[% END %]>
+          <button type="button" class="stdclick" data-guidance-inherited-field="[% control.field_name | html %]" data-guidance-inherited-marker="[% control.inherit_field_name | html %]" data-guidance-dirty-marker="[% control.dirty_field_name | html %]" data-guidance-inherited-value="[% control.inherited | html %]" data-guidance-origin="guidance-origin-[% control.field_name | html %]" data-guidance-inherit-button="guidance-inherit-button-[% control.field_name | html %]" data-guidance-inherited-origin="[% control.inherited_origin | html %]" data-guidance-inherited-origin-label="[% control.inherited_origin_label_token | string %]" data-guidance-host-origin="host_override" data-guidance-host-origin-label="[% guidance_ui.host_origin_token | string %]" data-guidance-origin-pending="[% guidance_ui.origin_pending_token | string %]"[% UNLESS provider.enabled && provider.available && provider.policy_valid %] disabled[% END %]>[% guidance_ui.reset_token | string %]</button>
+        </span>
+      [% END %]
     [% END %]
   </div>
 [% END %]

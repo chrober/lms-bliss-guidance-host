@@ -9,6 +9,9 @@ bounded JSONL v2 native-provider session. Hosts remain Bliss-first: providers
 receive only candidates the host has already admitted and can only contribute
 secondary reranking signals.
 
-The first consumers are Better Call Bliss and Bliss Mixer Lab. See the
+Better Call Bliss 0.21.0 and Bliss Mixer Lab already implement equivalent
+host-pull discovery for the Library Signals provider. This repository is the
+authoritative consolidation target for their shared discovery, policy, and
+settings UI; it does not introduce a second provider protocol. See the
 [`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi)
 repository for the native protocol and provider contract.

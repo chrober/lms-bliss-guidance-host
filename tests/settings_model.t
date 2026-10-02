@@ -103,4 +103,42 @@ is($horizon->{render_as}, 'number', 'descriptor number rendering stays a number 
 ok(!$horizon->{show_reset}, 'inherited control has no reset action');
 is($horizon->{marker_id}, 'guidance_library-signals_last_played_horizon_days_origin', 'control has a stable origin marker ID');
 
+my $legacy_sections = Plugins::BlissGuidance::SettingsModel::provider_sections(
+    $discovery,
+    $host_state,
+    {
+        source_labels => {
+            host_override => 'Better Call Bliss setting',
+            provider_default => 'Provider setting',
+            factory_default => 'Provider factory default',
+        },
+        field_names => {
+            enabled => sub { return 'pref_guidance_provider_' . $_[0] . '_enabled'; },
+            control => sub { return 'pref_guidance_provider_' . $_[0] . '_' . $_[1]; },
+            inherit => sub { return 'inherit_guidance_provider_' . $_[0] . '_' . $_[1]; },
+            dirty => sub { return 'dirty_guidance_provider_' . $_[0] . '_' . $_[1]; },
+        },
+        origin_label_token => sub { return 'HOST_' . uc($_[0]); },
+    },
+);
+my $legacy_control = $legacy_sections->[0]->{controls}->[0];
+is($legacy_sections->[0]->{enable_field_name},
+    'pref_guidance_provider_library-signals_enabled',
+    'host field-name policy keeps the established enablement field');
+is($legacy_control->{field_name},
+    'pref_guidance_provider_library-signals_playcount_influence',
+    'host field-name policy keeps the established control field');
+is($legacy_control->{inherit_field_name},
+    'inherit_guidance_provider_library-signals_playcount_influence',
+    'host field-name policy keeps the established inherited marker');
+is($legacy_control->{dirty_field_name},
+    'dirty_guidance_provider_library-signals_playcount_influence',
+    'host field-name policy keeps the established dirty marker');
+is($legacy_control->{origin_label_token}, 'HOST_HOST_OVERRIDE',
+    'host supplies its localized origin token without altering policy provenance');
+is($legacy_control->{label_token}, undef,
+    'descriptor label token is passed through without host-localized substitution');
+is_deeply($legacy_control->{enum_values}, [],
+    'non-enum controls expose a stable empty enum list to the canonical partial');
+
 done_testing();

@@ -24,6 +24,7 @@ sub _section {
     my ($provider, $all_host_state, $host_identity) = @_;
     my $provider_id = $provider->{provider_id} || '';
     my $descriptor = ref($provider->{descriptor}) eq 'HASH' ? $provider->{descriptor} : {};
+    my $defaults = ref($provider->{defaults}) eq 'HASH' ? $provider->{defaults} : {};
     my $host_state = Plugins::BlissGuidance::Policy::host_state(
         $all_host_state, $provider_id,
     );
@@ -32,13 +33,31 @@ sub _section {
     );
     my $labels = ref($host_identity->{source_labels}) eq 'HASH'
         ? $host_identity->{source_labels} : {};
+    my $field_names = ref($host_identity->{field_names}) eq 'HASH'
+        ? $host_identity->{field_names} : {};
+    my $origin_label_token = ref($host_identity->{origin_label_token}) eq 'CODE'
+        ? $host_identity->{origin_label_token} : undef;
+    my $enabled_field = _field_name(
+        $field_names->{enabled}, "pref_guidance_${provider_id}_enabled", $provider_id,
+    );
     my @controls;
 
     for my $control (@{$descriptor->{controls} || []}) {
         next unless ref($control) eq 'HASH' && $control->{key};
         my $key = $control->{key};
         my $origin = $resolved->{origins}->{$key} || 'factory_default';
+        my $field_name = _field_name(
+            $field_names->{control}, "pref_guidance_${provider_id}_${key}", $provider_id, $key,
+        );
+        my $inherit_field_name = _field_name(
+            $field_names->{inherit}, "inherit_guidance_${provider_id}_${key}", $provider_id, $key,
+        );
+        my $dirty_field_name = _field_name(
+            $field_names->{dirty}, "dirty_guidance_${provider_id}_${key}", $provider_id, $key,
+        );
+        my $inherited_is_provider = exists $defaults->{$key};
         push @controls, {
+            %$control,
             key => $key,
             label => $control->{label} || $key,
             help => $control->{help} || '',
@@ -50,10 +69,24 @@ sub _section {
             factory_default => $control->{factory_default},
             inherited_value => _inherited_value($provider, $control),
             effective_value => $resolved->{effective}->{$key},
+            effective => $resolved->{effective}->{$key},
             origin => $origin,
             origin_label => $labels->{$origin} || $origin,
+            origin_label_token => $origin_label_token
+                ? $origin_label_token->($origin) : undef,
             host_overridable => $control->{host_overridable} ? 1 : 0,
             show_reset => $origin eq 'host_override' ? 1 : 0,
+            field_name => $field_name,
+            inherit_field_name => $inherit_field_name,
+            dirty_field_name => $dirty_field_name,
+            inherited => _inherited_value($provider, $control),
+            inherited_origin => $inherited_is_provider
+                ? 'provider_default' : 'factory_default',
+            inherited_origin_label_token => $origin_label_token
+                ? $origin_label_token->($inherited_is_provider
+                    ? 'provider_default' : 'factory_default') : undef,
+            enum_values => ref($control->{values}) eq 'ARRAY'
+                ? $control->{values} : [],
             form_id => "guidance_${provider_id}_${key}",
             marker_id => "guidance_${provider_id}_${key}_origin",
         };
@@ -66,10 +99,19 @@ sub _section {
         available => $provider->{available} ? 1 : 0,
         diagnostic => $provider->{diagnostic} || '',
         enabled => $host_state->{enabled} ? 1 : 0,
+        policy_valid => $resolved->{valid} ? 1 : 0,
+        policy_diagnostic => $resolved->{diagnostic} || '',
+        enable_field_name => $enabled_field,
         settings_uri => $descriptor->{settings_uri} || '',
         settings_link_label => "Open $display_name settings",
         controls => \@controls,
     };
+}
+
+sub _field_name {
+    my ($builder, $fallback, @args) = @_;
+    return $builder->(@args) if ref($builder) eq 'CODE';
+    return $fallback;
 }
 
 sub _inherited_value {

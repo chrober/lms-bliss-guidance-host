@@ -1,41 +1,95 @@
 (function () {
   'use strict';
 
-  function setControlsVisible(section, enabled) {
-    var controls = section.querySelector('[data-guidance-controls]');
+  function setGuidanceOrigin(element, label, pending, sourceOrigin) {
+    var originElement = document.getElementById(element.getAttribute('data-guidance-origin'));
+    if (!originElement) return;
+    var prefix = originElement.getAttribute('data-guidance-origin-prefix') || '';
+    originElement.textContent = prefix + ' ' + label + (pending ? ' ' + pending : '') + '.';
+    var reset = document.getElementById(element.getAttribute('data-guidance-inherit-button'));
+    if (reset) reset.classList.toggle('hidden', sourceOrigin === 'provider_default');
+  }
+
+  function copyGuidanceInheritedDefault(button) {
+    var fieldName = button.getAttribute('data-guidance-inherited-field');
+    var value = button.getAttribute('data-guidance-inherited-value');
+    var marker = document.getElementById(button.getAttribute('data-guidance-inherited-marker'));
+    var dirtyMarker = document.getElementById(button.getAttribute('data-guidance-dirty-marker'));
+    var input = document.getElementById(fieldName);
+    if (!input) return;
+    if (input.type === 'checkbox') {
+      input.checked = value === '1';
+    } else {
+      input.value = value;
+    }
+    var slider = document.getElementById('mskslider.' + fieldName);
+    if (slider) slider.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    if (marker) marker.value = '1';
+    if (dirtyMarker) dirtyMarker.value = '0';
+    setGuidanceOrigin(
+      button,
+      button.getAttribute('data-guidance-inherited-origin-label'),
+      button.getAttribute('data-guidance-origin-pending'),
+      button.getAttribute('data-guidance-inherited-origin')
+    );
+  }
+
+  function bindGuidanceInheritedDefaultButtons(root) {
+    root.querySelectorAll('[data-guidance-inherited-field]').forEach(function (button) {
+      button.addEventListener('click', function (event) {
+        event.preventDefault();
+        copyGuidanceInheritedDefault(button);
+      });
+    });
+  }
+
+  function bindGuidanceInheritedMarkers(root) {
+    root.querySelectorAll('[data-guidance-inherited-field]').forEach(function (button) {
+      var fieldName = button.getAttribute('data-guidance-inherited-field');
+      var markerName = button.getAttribute('data-guidance-inherited-marker');
+      var dirtyMarkerName = button.getAttribute('data-guidance-dirty-marker');
+      var input = document.getElementById(fieldName);
+      var marker = document.getElementById(markerName);
+      var dirtyMarker = document.getElementById(dirtyMarkerName);
+      if (!input || !marker || !dirtyMarker) return;
+      var markHostOverride = function () {
+        marker.value = '0';
+        dirtyMarker.value = '1';
+        setGuidanceOrigin(
+          button,
+          button.getAttribute('data-guidance-host-origin-label'),
+          '',
+          button.getAttribute('data-guidance-host-origin')
+        );
+      };
+      input.addEventListener('input', markHostOverride);
+      input.addEventListener('change', markHostOverride);
+    });
+  }
+
+  function updateGuidanceProviderControls(checkbox) {
+    var controls = document.getElementById(checkbox.getAttribute('data-guidance-provider-controls'));
     if (!controls) return;
-    controls.classList.toggle('guidance-provider-controls-hidden', !enabled);
-    controls.setAttribute('aria-hidden', enabled ? 'false' : 'true');
-  }
-
-  function resetInherited(control) {
-    var value = control.querySelector('[data-guidance-value]');
-    if (!value) return;
-    value.value = value.getAttribute('data-guidance-inherited');
-    var slider = control.querySelector('[data-guidance-slider]');
-    if (slider) slider.value = value.value;
-    var origin = control.querySelector('[data-guidance-origin]');
-    if (origin) origin.textContent = 'Effective value source: Provider setting.';
-    var reset = control.querySelector('[data-guidance-reset]');
-    if (reset) reset.hidden = true;
-  }
-
-  function bind(root) {
-    root.querySelectorAll('[data-guidance-enable]').forEach(function (checkbox) {
-      checkbox.addEventListener('change', function () {
-        setControlsVisible(checkbox.closest('[data-guidance-provider]'), checkbox.checked);
-      });
-    });
-    root.querySelectorAll('[data-guidance-reset]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        resetInherited(button.closest('[data-guidance-control]'));
-      });
+    var enabled = checkbox.checked;
+    var usable = checkbox.getAttribute('data-guidance-provider-controls-usable') === '1';
+    controls.classList.toggle('hidden', !enabled);
+    controls.querySelectorAll('input, select, button').forEach(function (input) {
+      input.disabled = !enabled || !usable;
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { bind(document); });
-  } else {
-    bind(document);
+  function bindGuidanceProviderControls(root) {
+    root.querySelectorAll('[data-guidance-provider-controls]').forEach(function (checkbox) {
+      checkbox.addEventListener('change', function () { updateGuidanceProviderControls(checkbox); });
+      updateGuidanceProviderControls(checkbox);
+    });
   }
+
+  window.BlissGuidanceHostControls = {
+    bindGuidanceInheritedDefaultButtons: bindGuidanceInheritedDefaultButtons,
+    bindGuidanceInheritedMarkers: bindGuidanceInheritedMarkers,
+    bindGuidanceProviderControls: bindGuidanceProviderControls
+  };
 }());
