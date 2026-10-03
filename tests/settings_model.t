@@ -74,6 +74,17 @@ my $sections = Plugins::BlissGuidance::SettingsModel::provider_sections(
             provider_default => 'Provider setting',
             factory_default => 'Provider factory default',
         },
+        ui_labels => {
+            available       => 'Provider backend is available.',
+            unavailable     => sub { return "Provider backend is unavailable: $_[0]"; },
+            settings         => sub { return "Open $_[0] settings"; },
+            enabled          => 'Use this provider',
+            enabled_desc     => 'Enable this provider for this host.',
+            origin_prefix    => 'Effective value source:',
+            host_origin      => 'Better Call Bliss setting',
+            origin_pending   => '(will apply when saved)',
+            reset            => 'Use inherited default',
+        },
     },
 );
 
@@ -87,6 +98,12 @@ my $library = $sections->[0];
 ok($library->{enabled}, 'provider enablement is retained');
 is($library->{settings_uri}, 'plugins/LibrarySignals/settings/librarysignals.html', 'provider settings URI is retained');
 is($library->{settings_link_label}, 'Open Library Signals settings', 'settings link uses provider display name');
+is($library->{available_label}, 'Provider backend is available.',
+    'provider carries its host-rendered availability label');
+is($library->{enabled_label}, 'Use this provider',
+    'provider carries its host-rendered enablement label');
+is($library->{enabled_desc}, 'Enable this provider for this host.',
+    'provider carries its host-rendered enablement help');
 
 my ($playcount) = grep { $_->{key} eq 'playcount_influence' } @{$library->{controls}};
 is($playcount->{effective_value}, 0, 'explicit zero remains an effective override');
@@ -95,6 +112,14 @@ is($playcount->{origin_label}, 'Better Call Bliss setting', 'host-localized prov
 is($playcount->{render_as}, 'slider', 'descriptor slider rendering remains a slider');
 ok($playcount->{show_reset}, 'overridden control offers inherited-default reset');
 is($playcount->{form_id}, 'guidance_library-signals_playcount_influence', 'control has a stable form ID');
+is($playcount->{origin_prefix_label}, 'Effective value source:',
+    'control carries the host-rendered provenance prefix');
+is($playcount->{host_origin_label}, 'Better Call Bliss setting',
+    'control carries the host-rendered override provenance');
+is($playcount->{origin_pending_label}, '(will apply when saved)',
+    'control carries the host-rendered unsaved-state annotation');
+is($playcount->{reset_label}, 'Use inherited default',
+    'control carries the host-rendered inherited-default action label');
 
 my ($horizon) = grep { $_->{key} eq 'last_played_horizon_days' } @{$library->{controls}};
 is($horizon->{effective_value}, 180, 'provider default is the effective inherited value');

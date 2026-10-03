@@ -14,7 +14,17 @@ close $partial_fh;
 like($partial, qr/guidance-provider-controls-\[\% provider\.provider_id/,
     'partial has a stable provider-controls wrapper');
 like($partial, qr/guidance_ui\.settings_token/,
-    'partial renders the host-localized provider-specific settings link label');
+    'partial retains the installed-host label fallback');
+like($partial, qr/provider\.available_label/,
+    'partial renders the provider-carried availability label');
+like($partial, qr/provider\.settings_link_label/,
+    'partial renders the provider-carried settings link label');
+like($partial, qr/provider\.enabled_label/,
+    'partial renders the provider-carried enablement label');
+like($partial, qr/control\.origin_prefix_label/,
+    'partial renders the control-carried provenance prefix');
+like($partial, qr/control\.reset_label/,
+    'partial renders the control-carried inherited-default action label');
 like($partial, qr/type="checkbox"/, 'partial renders enablement as a checkbox');
 like($partial, qr/data-guidance-provider-controls=/,
     'checkbox is identifiable by the shared interaction script');
@@ -46,6 +56,10 @@ like($script, qr/data-guidance-inherited-field/, 'script binds the inherited-def
 unlike($script, qr/\.submit\s*\(/, 'script never submits settings implicitly');
 like($script, qr/bindGuidanceInheritedMarkers/,
     'script marks explicit host overrides without submitting the form');
+like($script, qr/root\.addEventListener\(\s*['"]input['"]\s*,\s*markMaterialSliderOverride\s*\)/,
+    'script delegates Material Skin generated slider input when marking host overrides');
+like($script, qr/root\.addEventListener\(\s*['"]change['"]\s*,\s*markMaterialSliderOverride\s*\)/,
+    'script delegates Material Skin generated slider changes when marking host overrides');
 like($script, qr/updateGuidanceProviderControls/,
     'script immediately hides or shows provider controls');
 
