@@ -67,6 +67,33 @@ source label; the ordinary Save action is the only persistence action.
 Provider failures are non-fatal: a host retains its Bliss-only result when a
 provider is unavailable, invalid, slow, or returns unusable output.
 
+## Settings UI contract
+
+This repository owns the canonical schema-driven controls that a Lyrion host
+vendors unchanged. A provider supplies descriptor metadata; a host supplies a
+resolved `guidance_provider_sections` view model. Providers never inject HTML,
+JavaScript, CSS, paths, or callbacks into a host page.
+
+For each available provider, the partial renders, in order:
+
+1. provider name;
+2. provider-specific **Open <provider> settings** link;
+3. **Use this provider** checkbox; and
+4. schema-declared controls, only while enabled.
+
+Controls preserve the descriptor's `render_as` value. A `slider` renders the
+Material Skin range plus numeric control; a `number` renders only a numeric
+input. A host must not infer widget style from the value type.
+
+Each control shows its effective-value source. The reset button appears only
+for an explicit host override. Selecting **Use inherited default** changes the
+current form value and annotation immediately, without submitting the page;
+the ordinary settings Save action is the only persistence action. Explicit `0`
+and `false` are valid host overrides, never a request to inherit.
+
+The JavaScript only controls unsaved visibility and reset state. It does not
+fetch provider data, start native processes, or submit a settings form.
+
 This repository is the authoritative consolidation target for shared
 discovery, policy, and settings UI; it does not introduce a second provider
 protocol. [Better Call Bliss](https://github.com/chrober/lms-better-call-bliss)
@@ -74,6 +101,3 @@ and [Bliss Mixer Lab](https://github.com/chrober/lms-blissmixer-lab) are current
 examples of host plugins using this approach. See the
 [`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi)
 repository for the native protocol and provider contract.
-
-The canonical settings-page contract is documented in
-[Guidance-provider host settings UI](GUIDANCE_PROVIDER_HOST_UI.md).
