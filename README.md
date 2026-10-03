@@ -15,3 +15,8 @@ authoritative consolidation target for their shared discovery, policy, and
 settings UI; it does not introduce a second provider protocol. See the
 [`bliss-playlist-guidance-spi`](https://github.com/chrober/bliss-playlist-guidance-spi)
 repository for the native protocol and provider contract.
+
+Read [the architecture and runtime flows](GUIDANCE_PROVIDER_HOST_ARCHITECTURE.md)
+for the static component boundaries and the dynamic discovery, settings, and
+native-scoring flows. The canonical settings-page contract is documented in
+[Guidance-provider host settings UI](GUIDANCE_PROVIDER_HOST_UI.md).
