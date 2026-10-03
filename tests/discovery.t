@@ -43,6 +43,14 @@ BEGIN {
     sub guidance_provider_process_environment_v1 {
         return { BLISS_GUIDANCE_TEST_TOKEN => 'not-for-wire' };
     }
+    sub guidance_provider_acquire_artifacts_v1 {
+        my ($class, $policy, $context, $callback) = @_;
+        $callback->({
+            available => 1,
+            artifacts => [{ kind => 'semantic-evidence-v1', path => '/trusted/evidence.json' }],
+            diagnostic => '',
+        });
+    }
 
     package Plugins::GuidanceBadEnvironment::Plugin;
     sub guidance_provider_process_environment_v1 {
@@ -76,6 +84,14 @@ is_deeply($environment, { BLISS_GUIDANCE_TEST_TOKEN => 'not-for-wire' },
 my $serialized_config = encode_json($config);
 unlike($serialized_config, qr/BLISS_GUIDANCE_TEST_TOKEN/, 'native SPI configuration omits environment-variable names');
 unlike($serialized_config, qr/not-for-wire/, 'native SPI configuration omits environment-variable values');
+
+my $acquisition;
+Plugins::BlissGuidance::Discovery::acquire_artifacts(
+    $discovery->{providers}->[0], {}, {}, sub { $acquisition = shift },
+);
+is_deeply($acquisition->{artifacts},
+    [{ kind => 'semantic-evidence-v1', path => '/trusted/evidence.json' }],
+    'provider artifacts are acquired through the asynchronous lifecycle hook');
 
 my $environment_error;
 eval {
