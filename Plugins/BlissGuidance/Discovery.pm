@@ -64,6 +64,26 @@ sub native_spi_config {
     return $config;
 }
 
+sub process_environment {
+    my ($provider, $resolved_policy, $trusted_context) = @_;
+    die 'guidance provider is unavailable'
+        unless ref($provider) eq 'HASH' && $provider->{available};
+    my $module = $provider->{module} || '';
+    return {} unless $module && $module->can('guidance_provider_process_environment_v1');
+
+    my ($environment, $call_error);
+    eval {
+        $environment = $module->guidance_provider_process_environment_v1(
+            $resolved_policy, $trusted_context,
+        );
+    };
+    $call_error = $@;
+    die 'invalid provider process environment' if $call_error;
+    my $error = _validate_process_environment($environment);
+    die 'invalid provider process environment' if $error;
+    return { %$environment };
+}
+
 sub _load_runtime {
     my $entry = shift;
     my $module = $entry->{module};
@@ -192,6 +212,18 @@ sub _validate_native_config {
     return 'configuration options is not an object' unless ref($config->{options}) eq 'HASH';
     return 'configuration artifacts is not an array' unless ref($config->{artifacts}) eq 'ARRAY';
     return 'configuration resources is not an array' unless ref($config->{resources}) eq 'ARRAY';
+    return '';
+}
+
+sub _validate_process_environment {
+    my $environment = shift;
+    return 'environment is not an object' unless ref($environment) eq 'HASH';
+    for my $name (keys %$environment) {
+        return 'environment variable name is invalid'
+            unless defined $name && $name =~ /^[A-Za-z_][A-Za-z0-9_]*$/;
+        return 'environment variable value is invalid'
+            unless defined $environment->{$name} && !ref($environment->{$name});
+    }
     return '';
 }
 

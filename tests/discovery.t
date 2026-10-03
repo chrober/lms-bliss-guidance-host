@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use FindBin;
+use JSON::PP qw(encode_json);
 use Test::More;
 
 BEGIN {
@@ -39,6 +40,14 @@ BEGIN {
     sub guidance_provider_native_spi_config_v1 {
         return { id => 'library-signals-guidance', program => '/trusted/provider', options => {}, artifacts => [], resources => [] };
     }
+    sub guidance_provider_process_environment_v1 {
+        return { BLISS_GUIDANCE_TEST_TOKEN => 'not-for-wire' };
+    }
+
+    package Plugins::GuidanceBadEnvironment::Plugin;
+    sub guidance_provider_process_environment_v1 {
+        die 'secret-value-must-not-leak';
+    }
 }
 
 use lib "$FindBin::Bin/..";
@@ -56,5 +65,31 @@ my $config = Plugins::BlissGuidance::Discovery::native_spi_config(
     { candidate_identity_artifact => { kind => 'eligible-candidate-identities-v1', path => '/trusted/candidates.json', sha256 => ('a' x 64) }, as_of_unix_seconds => 123 },
 );
 is($config->{id}, 'library-signals-guidance', 'trusted provider factory supplies its native configuration');
+
+my $environment = Plugins::BlissGuidance::Discovery::process_environment(
+    $discovery->{providers}->[0],
+    { playcount_influence => -80 },
+    { candidate_identity_artifact => { kind => 'eligible-candidate-identities-v1', path => '/trusted/candidates.json', sha256 => ('a' x 64) }, as_of_unix_seconds => 123 },
+);
+is_deeply($environment, { BLISS_GUIDANCE_TEST_TOKEN => 'not-for-wire' },
+    'provider launch environment is returned through its separate lifecycle hook');
+my $serialized_config = encode_json($config);
+unlike($serialized_config, qr/BLISS_GUIDANCE_TEST_TOKEN/, 'native SPI configuration omits environment-variable names');
+unlike($serialized_config, qr/not-for-wire/, 'native SPI configuration omits environment-variable values');
+
+my $environment_error;
+eval {
+    Plugins::BlissGuidance::Discovery::process_environment(
+        {
+            available => 1,
+            module => 'Plugins::GuidanceBadEnvironment::Plugin',
+            descriptor => $discovery->{providers}->[0]->{descriptor},
+        },
+        {}, {},
+    );
+};
+$environment_error = $@;
+like($environment_error, qr/^invalid provider process environment/, 'launch-environment failures use a neutral diagnostic');
+unlike($environment_error, qr/secret-value-must-not-leak/, 'launch-environment diagnostics redact provider details');
 
 done_testing();
