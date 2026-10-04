@@ -166,6 +166,34 @@ is($legacy_control->{label_token}, undef,
 is_deeply($legacy_control->{enum_values}, [],
     'non-enum controls expose a stable empty enum list to the canonical partial');
 
+my $lastfm_sections = Plugins::BlissGuidance::SettingsModel::provider_sections(
+    {
+        providers => [{
+            provider_id => 'lastfm', available => 1,
+            descriptor => {
+                display_name => 'Last.fm', controls => [{
+                    key => 'artist_mode', type => 'enum',
+                    values => [qw(target_share bounded_influence)],
+                    option_labels => {
+                        target_share => 'GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE',
+                        bounded_influence => 'GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED',
+                    },
+                    factory_default => 'target_share', host_overridable => 1,
+                }],
+            },
+            defaults => { artist_mode => 'bounded_influence', settings_revision => 1 },
+        }],
+    }, {}, {},
+);
+is_deeply(
+    $lastfm_sections->[0]{controls}[0]{enum_options},
+    [
+        { value => 'target_share', label_token => 'GUIDANCE_LASTFM_ARTIST_MODE_TARGET_SHARE' },
+        { value => 'bounded_influence', label_token => 'GUIDANCE_LASTFM_ARTIST_MODE_BOUNDED' },
+    ],
+    'enum controls carry provider-declared localized option labels for host renderers',
+);
+
 my $invalid_discovery = {
     providers => [
         {

@@ -35,6 +35,10 @@ like($partial, qr/control\.origin == 'provider_default'/,
     'reset action is hidden for inherited provider settings');
 like($partial, qr/render_as == 'slider'/, 'partial follows descriptor-declared slider rendering');
 like($partial, qr/type="number"/, 'partial supports descriptor-declared number rendering');
+like($partial, qr/control\.enum_options/, 'partial renders provider-declared enum options rather than raw values');
+like($partial, qr/option\.label_token \| string/, 'partial localizes provider-declared enum option labels');
+like($partial, qr/provider\.available && provider\.policy_valid/, 'initially hidden usable controls are not statically disabled before Material Skin can render them');
+unlike($partial, qr/provider\.enabled && provider\.available && provider\.policy_valid/, 'enablement is applied dynamically instead of becoming a permanent Material Skin disabled state');
 like($partial, qr/data-guidance-provider-controls=/,
     'partial keeps the existing host checkbox-to-controls data contract');
 like($partial, qr/data-guidance-inherited-field=/,
