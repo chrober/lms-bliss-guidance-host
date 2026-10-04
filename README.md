@@ -4,6 +4,11 @@ Shared, source-only Perl support for Lyrion plugins that consume discoverable
 Bliss guidance providers. It is bundled by host plugins; it is not an
 installable Lyrion extension and has no settings page of its own.
 
+The current shipped examples are Library Signals and Last.fm. Library Signals
+uses a trusted read-only `persist.db`; Last.fm uses the LastMix-resolved,
+hash-bound artifact path. The Last.fm provider's API Key control is present,
+but direct native HTTP/cache acquisition is not shipped yet.
+
 It provides provider discovery, host/default/job policy resolution, and a
 bounded JSONL v2 native-provider session. Hosts remain Bliss-first: providers
 receive only candidates the host has already admitted and can only contribute
