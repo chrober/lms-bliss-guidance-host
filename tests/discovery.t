@@ -51,6 +51,13 @@ BEGIN {
             diagnostic => '',
         });
     }
+    our @LOG_EVENTS;
+    our $LOG_CONTEXT;
+    sub guidance_provider_log_events_v1 {
+        my ($class, $events, $context) = @_;
+        @LOG_EVENTS = @$events;
+        $LOG_CONTEXT = $context;
+    }
 
     package Plugins::GuidanceBadEnvironment::Plugin;
     sub guidance_provider_process_environment_v1 {
@@ -107,5 +114,30 @@ eval {
 $environment_error = $@;
 like($environment_error, qr/^invalid provider process environment/, 'launch-environment failures use a neutral diagnostic');
 unlike($environment_error, qr/secret-value-must-not-leak/, 'launch-environment diagnostics redact provider details');
+
+Plugins::BlissGuidance::Discovery::dispatch_log_events(
+    $discovery->{providers}->[0],
+    [
+        { event_version => 'guidance_log_event_v1', level => 'info', phase => 'prepare', event => 'fixture_prepared', provider_id => 'library-signals-guidance' },
+        { event_version => 'unknown', level => 'info', phase => 'prepare', event => 'ignored', provider_id => 'library-signals-guidance' },
+    ],
+    { host => 'fixture-host', job_id => 'fixture-job' },
+);
+is_deeply(
+    [map { $_->{event} } @Plugins::GuidanceFixture::Plugin::LOG_EVENTS],
+    ['fixture_prepared'],
+    'valid events are dispatched through the optional provider hook',
+);
+is($Plugins::GuidanceFixture::Plugin::LOG_CONTEXT->{host}, 'fixture-host',
+    'provider log hook receives host context');
+
+ok(
+    Plugins::BlissGuidance::Discovery::dispatch_log_events(
+        { available => 1, module => 'Plugins::GuidanceBadEnvironment::Plugin' },
+        [],
+        { host => 'fixture-host' },
+    ),
+    'a provider without a log hook remains compatible',
+);
 
 done_testing();

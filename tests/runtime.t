@@ -24,9 +24,14 @@ while (my $line = <STDIN>) {
     if ($request->{type} eq 'describe') {
         print encode_json({ type => 'manifest', spi_version => 2, provider_id => 'fixture-provider', provider_version => 'test', protocol => 'bliss-guidance-jsonl-v2', capabilities => ['global_candidate_guidance'], channels => [] }) . "\n";
     } elsif ($request->{type} eq 'prepare') {
-        print encode_json({ type => 'prepared', provider_id => 'fixture-provider', snapshot_id => 'fixture', diagnostics => {} }) . "\n";
+        print encode_json({ type => 'prepared', provider_id => 'fixture-provider', snapshot_id => 'fixture', diagnostics => { details => { log_events_v1 => [
+            { event_version => 'guidance_log_event_v1', level => 'info', phase => 'prepare', event => 'fixture_prepared', provider_id => 'fixture-provider' },
+            { event_version => 'unknown', level => 'info', phase => 'prepare', event => 'ignored', provider_id => 'fixture-provider' }
+        ] } } }) . "\n";
     } elsif ($request->{type} eq 'score') {
-        print encode_json({ type => 'scores', provider_id => 'fixture-provider', request_id => $request->{request_id}, signals => [{ candidate_id => 'track-a', channel => 'playcount', scope => 'global', score => -0.5, confidence => 1, observation => { playcount => 3 } }], diagnostics => {} }) . "\n";
+        print encode_json({ type => 'scores', provider_id => 'fixture-provider', request_id => $request->{request_id}, signals => [{ candidate_id => 'track-a', channel => 'playcount', scope => 'global', score => -0.5, confidence => 1, observation => { playcount => 3 } }], diagnostics => { details => { log_events_v1 => [
+            { event_version => 'guidance_log_event_v1', level => 'debug', phase => 'score', event => 'fixture_scored', provider_id => 'fixture-provider', result_count => 1 }
+        ] } } }) . "\n";
     } elsif ($request->{type} eq 'close') {
         print encode_json({ type => 'closed', provider_id => 'fixture-provider' }) . "\n";
     }
@@ -50,6 +55,11 @@ my $result = Plugins::BlissGuidance::Runtime::score_batch({
 ok($result->{valid}, 'bounded JSONL session succeeds');
 is($result->{signals}->[0]->{candidate_id}, 'track-a', 'signal is returned for the supplied candidate');
 is($result->{signals}->[0]->{observation}->{playcount}, 3, 'structured observation is preserved');
+is_deeply(
+    [map { $_->{event} } @{$result->{log_events}}],
+    [qw(fixture_prepared fixture_scored)],
+    'valid prepare and score log events are preserved in order',
+);
 
 pipe(my $ready_read, my $ready_write)
     or die "cannot create stubborn provider fixture pipe: $!";

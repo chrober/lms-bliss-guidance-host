@@ -11,6 +11,8 @@ use Time::HiRes qw(time);
 
 use constant SPI_VERSION => 2;
 use constant PROTOCOL => 'bliss-guidance-jsonl-v2';
+use constant MAX_LOG_EVENTS => 64;
+use constant MAX_LOG_EVENT_BYTES => 16 * 1024;
 
 sub score_batch {
     my ($config, $request) = @_;
@@ -65,12 +67,18 @@ sub score_batch {
             type => 'close', spi_version => SPI_VERSION,
         });
         _expect($closed, 'closed', $provider_id);
+        my @log_events = (
+            @{_extract_log_events($prepared->{diagnostics})},
+            @{_extract_log_events($scores->{diagnostics})},
+        );
+        splice @log_events, MAX_LOG_EVENTS if @log_events > MAX_LOG_EVENTS;
         {
             valid => 1,
             signals => ref($scores->{signals}) eq 'ARRAY' ? $scores->{signals} : [],
             manifest => $manifest,
             prepared => $prepared,
             diagnostics => $scores->{diagnostics} || {},
+            log_events => \@log_events,
             elapsed_ms => int((time() - $started) * 1000),
             diagnostic => '',
         };
@@ -83,6 +91,34 @@ sub score_batch {
     return $result if $result;
     $error =~ s/\s+$// if defined $error;
     return _failure($error || 'provider session failed', $started);
+}
+
+sub _extract_log_events {
+    my $diagnostics = shift;
+    return [] unless ref($diagnostics) eq 'HASH'
+        && ref($diagnostics->{details}) eq 'HASH'
+        && ref($diagnostics->{details}->{log_events_v1}) eq 'ARRAY';
+    my @events;
+    for my $event (@{$diagnostics->{details}->{log_events_v1}}) {
+        next unless _valid_log_event($event);
+        push @events, { %$event };
+        last if @events >= MAX_LOG_EVENTS;
+    }
+    return \@events;
+}
+
+sub _valid_log_event {
+    my $event = shift;
+    return 0 unless ref($event) eq 'HASH';
+    return 0 unless ($event->{event_version} || '') eq 'guidance_log_event_v1';
+    return 0 unless ($event->{level} || '') =~ /^(?:error|warning|info|debug)$/;
+    return 0 unless defined $event->{phase} && length $event->{phase} && !ref($event->{phase});
+    return 0 unless defined $event->{event} && length $event->{event} && !ref($event->{event});
+    return 0 unless defined $event->{provider_id} && length $event->{provider_id}
+        && !ref($event->{provider_id});
+    my $encoded = eval { encode_json($event) };
+    return 0 unless defined $encoded && length($encoded) <= MAX_LOG_EVENT_BYTES;
+    return 1;
 }
 
 sub _exchange {
