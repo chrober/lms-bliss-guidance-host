@@ -5,9 +5,9 @@ Bliss guidance providers. It is bundled by host plugins; it is not an
 installable Lyrion extension and has no settings page of its own.
 
 The current shipped examples are Library Signals and Last.fm. Library Signals
-uses a trusted read-only `persist.db`; Last.fm uses the LastMix-resolved,
-hash-bound artifact path. The Last.fm provider's API Key control is present,
-but direct native HTTP/cache acquisition is not shipped yet.
+uses a trusted read-only `persist.db`; Last.fm uses either a LastMix-resolved,
+hash-bound artifact or provider-owned direct API acquisition with a local TTL
+cache.
 
 It provides provider discovery, host/default/job policy resolution, and a
 bounded JSONL v2 native-provider session. Hosts remain Bliss-first: providers
@@ -62,8 +62,10 @@ sequenceDiagram
     H->>E: Submit Bliss-qualified candidate request
     E->>E: Apply Bliss selection and host constraints
     E->>N: Prepare and score admitted candidates
-    N-->>E: Bounded signals and diagnostics
-    E-->>H: Selected tracks and selection trace
+    N-->>E: Bounded signals and structured diagnostics
+    E-->>H: Selected tracks, selection trace, and provider log events
+    H->>S: Dispatch validated events to their owning provider
+    S->>P: Invoke optional provider log hook
     H-->>U: Preview, queue action, or localized logs
 ```
 
@@ -71,6 +73,18 @@ Selecting **Use inherited default** updates only the current form value and
 source label; the ordinary Save action is the only persistence action.
 Provider failures are non-fatal: a host retains its Bliss-only result when a
 provider is unavailable, invalid, slow, or returns unusable output.
+
+## Provider-owned logging
+
+Native providers can attach bounded `guidance_log_event_v1` objects to prepare
+and score diagnostics. The runtime validates their version, level, size, and
+count, preserves prepare-before-score order, and invokes the optional
+`guidance_provider_log_events_v1` hook on the owning Lyrion provider. Hosts and
+native engines transport these objects but do not invent rendered messages.
+
+This keeps log categories and wording provider-owned. It also keeps native
+stdout strictly JSONL: diagnostic text never competes with the wire protocol,
+and a missing or failing log hook never affects guidance scoring.
 
 ## Settings UI contract
 
