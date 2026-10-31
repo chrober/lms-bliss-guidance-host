@@ -1,0 +1,26 @@
+name: Guidance SPI v2 host runtime
+
+on:
+  pull_request:
+    paths:
+      - 'Plugins/BlissGuidance/Runtime.pm'
+      - 'tests/runtime.t'
+      - '.github/workflows/spi-v2-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guidance-spi-runtime-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  perl-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify runtime syntax
+        run: perl -c Plugins/BlissGuidance/Runtime.pm
+      - name: SPI v2 JSONL transport regression
+        run: prove -lv tests/runtime.t
