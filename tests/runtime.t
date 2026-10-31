@@ -24,7 +24,7 @@ while (my $line = <STDIN>) {
     if ($request->{type} eq 'describe') {
         print encode_json({ type => 'manifest', spi_version => 2, provider_id => 'fixture-provider', provider_version => 'test', protocol => 'bliss-guidance-jsonl-v2', capabilities => ['global_candidate_guidance'], channels => [] }) . "\n";
     } elsif ($request->{type} eq 'prepare') {
-        print encode_json({ type => 'prepared', provider_id => 'fixture-provider', snapshot_id => 'fixture', diagnostics => { details => { log_events_v1 => [
+        print encode_json({ type => 'prepared', provider_id => 'fixture-provider', snapshot_id => 'fixture', diagnostics => { details => { accepted_anchors_v2 => $request->{anchors}, log_events_v1 => [
             { event_version => 'guidance_log_event_v1', level => 'info', phase => 'prepare', event => 'fixture_prepared', provider_id => 'fixture-provider' },
             { event_version => 'unknown', level => 'info', phase => 'prepare', event => 'ignored', provider_id => 'fixture-provider' }
         ] } } }) . "\n";
@@ -59,6 +59,61 @@ is_deeply(
     [map { $_->{event} } @{$result->{log_events}}],
     [qw(fixture_prepared fixture_scored)],
     'valid prepare and score log events are preserved in order',
+);
+
+# SPI v2 already defines prepare.anchors. The generic runtime must pass
+# host-supplied anchors verbatim, regardless of provider identity.
+my $seed = {
+    anchor_id => 'seed-1',
+    candidate_id => 'file:///music/seed.flac',
+    lms_urlmd5 => '01020304',
+    database_file => 'seed.flac',
+};
+my $anchored = Plugins::BlissGuidance::Runtime::score_batch({
+    id => 'fixture-provider',
+    program => $Config{perlpath},
+    argv => [$provider],
+    options => {},
+    artifacts => [],
+    resources => [],
+}, {
+    job_id => 'anchor-forwarding',
+    deadline_ms => 500,
+    anchors => [$seed],
+    context => {
+        scope => 'global',
+        context_track_ids => ['seed-1'],
+        left_anchor_id => undef,
+        right_anchor_id => undef,
+    },
+    candidates => [{candidate_id => 'track-a', lms_urlmd5 => 'abc'}],
+});
+ok($anchored->{valid}, 'native SPI session accepts an existing global anchor');
+is_deeply(
+    $anchored->{prepared}{diagnostics}{details}{accepted_anchors_v2},
+    [$seed],
+    'prepare forwards exact anchor ID and candidate identity fields without translation',
+);
+is_deeply(
+    $result->{prepared}{diagnostics}{details}{accepted_anchors_v2},
+    [],
+    'legacy anchor-free providers still receive an empty array',
+);
+my $malformed = Plugins::BlissGuidance::Runtime::score_batch({
+    id => 'fixture-provider',
+    program => $Config{perlpath},
+    argv => [$provider],
+}, {
+    job_id => 'invalid-anchor-shape',
+    deadline_ms => 500,
+    anchors => { anchor_id => 'not-an-array' },
+    candidates => [{candidate_id => 'track-a'}],
+});
+ok($malformed->{valid}, 'missing and invalid optional anchor collections remain backward compatible');
+is_deeply(
+    $malformed->{prepared}{diagnostics}{details}{accepted_anchors_v2},
+    [],
+    'an invalid anchors container never leaks untrusted object structure',
 );
 
 pipe(my $ready_read, my $ready_write)
