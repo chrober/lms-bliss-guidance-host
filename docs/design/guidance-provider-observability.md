@@ -1,4 +1,4 @@
-# Guidance Provider Observability Design
+# Guidance Provider Observability Design and Rationale
 
 **Date:** 2026-10-14  
 **Status:** Proposed  
