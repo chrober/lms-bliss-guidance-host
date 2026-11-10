@@ -53,6 +53,18 @@ my $discovery = {
     ],
 };
 
+my $provider_owned_sections = Plugins::BlissGuidance::SettingsModel::provider_sections({
+    providers => [{ provider_id => 'example', available => 1,
+        descriptor => {controls => [
+            {key => 'source', type => 'enum', values => [qw(lastmix api_key)],
+                factory_default => 'lastmix', host_overridable => 0},
+            {key => 'level', type => 'integer', minimum => 0, maximum => 100,
+                factory_default => 25, host_overridable => 1},
+        ]}, defaults => {source => 'api_key', level => 25}}],
+}, {}, {});
+is_deeply([map { $_->{key} } @{$provider_owned_sections->[0]{controls}}],
+    ['level'], 'provider-owned source is not offered as a host control');
+
 my $host_state = {
     providers => {
         'library-signals' => {

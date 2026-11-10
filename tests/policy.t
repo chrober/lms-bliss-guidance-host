@@ -40,5 +40,19 @@ my $invalid = Plugins::BlissGuidance::Policy::resolve(
 ok(!$invalid->{valid}, 'out-of-range override is rejected');
 like($invalid->{diagnostic}, qr/playcount_influence/, 'invalid control is identified');
 
+my $provider_owned = {
+    descriptor => {controls => [{key => 'source', type => 'enum',
+        values => [qw(lastmix api_key)], factory_default => 'lastmix',
+        host_overridable => 0}]},
+    defaults => {source => 'api_key'},
+};
+my $inherited = Plugins::BlissGuidance::Policy::resolve($provider_owned,
+    {enabled => 1, overrides => {source => 'lastmix'}},
+    {overrides => {source => 'lastmix'}});
+is($inherited->{effective}{source}, 'api_key',
+    'stale host and job overrides cannot override a provider-owned source');
+is($inherited->{origins}{source}, 'provider_default',
+    'the source retains provider-default provenance');
+
 done_testing();
 
