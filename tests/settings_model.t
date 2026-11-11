@@ -65,6 +65,37 @@ my $provider_owned_sections = Plugins::BlissGuidance::SettingsModel::provider_se
 is_deeply([map { $_->{key} } @{$provider_owned_sections->[0]{controls}}],
     ['level'], 'provider-owned source is not offered as a host control');
 
+my $fallback_sections = Plugins::BlissGuidance::SettingsModel::provider_sections({
+    providers => [{ provider_id => 'example', available => 1,
+        descriptor => {controls => [{ key => 'identity', type => 'enum',
+            values => ['shared'], factory_default => 'shared', host_overridable => 1,
+            unavailable_value_fallbacks => { follow => 'shared' },
+            unavailable_value_fallback_tokens => { follow => 'EXAMPLE_FOLLOW_UNAVAILABLE' },
+        }]}, defaults => { identity => 'shared' }}],
+}, {providers => {example => {enabled => 1, overrides => {identity => 'follow'}}}}, {});
+is($fallback_sections->[0]{controls}[0]{fallback_note_token}, 'EXAMPLE_FOLLOW_UNAVAILABLE',
+    'provider-defined fallback explanation reaches the generic host settings model');
+my $inherited_fallback_sections = Plugins::BlissGuidance::SettingsModel::provider_sections({
+    providers => [{ provider_id => 'example', available => 1,
+        descriptor => {controls => [{ key => 'identity', type => 'enum',
+            values => ['shared'], factory_default => 'shared', host_overridable => 1,
+            unavailable_value_fallback_tokens => { follow => 'EXAMPLE_FOLLOW_UNAVAILABLE' },
+        }]}, defaults => { identity => 'shared' },
+        status => { effective_default_fallbacks => { identity => 'follow' } } }],
+}, {}, {});
+is($inherited_fallback_sections->[0]{controls}[0]{fallback_note_token}, 'EXAMPLE_FOLLOW_UNAVAILABLE',
+    'an inherited provider default also explains its temporary fallback');
+my $explicit_sections = Plugins::BlissGuidance::SettingsModel::provider_sections({
+    providers => [{ provider_id => 'example', available => 1,
+        descriptor => {controls => [{ key => 'identity', type => 'enum',
+            values => ['shared', 'primary'], factory_default => 'shared', host_overridable => 1,
+            unavailable_value_fallback_tokens => { follow => 'EXAMPLE_FOLLOW_UNAVAILABLE' },
+        }]}, defaults => { identity => 'shared' },
+        status => { effective_default_fallbacks => { identity => 'follow' } } }],
+}, {providers => {example => {enabled => 1, overrides => {identity => 'primary'}}}}, {});
+ok(!defined $explicit_sections->[0]{controls}[0]{fallback_note_token},
+    'a host override does not incorrectly inherit the provider fallback notice');
+
 my $host_state = {
     providers => {
         'library-signals' => {

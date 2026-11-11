@@ -54,5 +54,22 @@ is($inherited->{effective}{source}, 'api_key',
 is($inherited->{origins}{source}, 'provider_default',
     'the source retains provider-default provenance');
 
+my $temporarily_unavailable = {
+    descriptor => { controls => [{ key => 'mode', type => 'enum', values => [qw(shared primary)],
+        unavailable_value_fallbacks => { follow => 'shared' }, factory_default => 'shared', host_overridable => 1 }] },
+    defaults => { mode => 'shared' },
+};
+my $saved_state = { enabled => 1, overrides => { mode => 'follow' } };
+my $fallback = Plugins::BlissGuidance::Policy::resolve($temporarily_unavailable, $saved_state, {});
+ok($fallback->{valid}, 'a temporarily unavailable saved enum choice has a valid fallback');
+is($fallback->{effective}{mode}, 'shared', 'fallback supplies an allowed effective value');
+is($saved_state->{overrides}{mode}, 'follow', 'resolving fallback never changes the saved override');
+is($fallback->{origins}{mode}, 'host_override', 'fallback preserves override provenance');
+is($fallback->{fallbacks}{mode}, 'follow', 'the unavailable choice is available to the UI for annotation');
+push @{$temporarily_unavailable->{descriptor}{controls}[0]{values}}, 'follow';
+delete $temporarily_unavailable->{descriptor}{controls}[0]{unavailable_value_fallbacks};
+my $restored = Plugins::BlissGuidance::Policy::resolve($temporarily_unavailable, $saved_state, {});
+is($restored->{effective}{mode}, 'follow', 'the saved choice is restored when it becomes available again');
+
 done_testing();
 

@@ -68,6 +68,19 @@ BEGIN {
 use lib "$FindBin::Bin/..";
 require Plugins::BlissGuidance::Discovery;
 
+{
+    my $descriptor = Plugins::GuidanceFixture::Plugin::guidance_provider_descriptor_v1();
+    $descriptor->{controls} = [{ key => 'identity', type => 'enum', values => ['shared'],
+        factory_default => 'shared', host_overridable => 1,
+        unavailable_value_fallbacks => { follow => 'not_available' },
+        unavailable_value_fallback_tokens => { follow => 'EXAMPLE_FALLBACK' } }];
+    like(Plugins::BlissGuidance::Discovery::_validate_descriptor($descriptor), qr/fallback/,
+        'fallback targets must be selectable enum values');
+    $descriptor->{controls}[0]{unavailable_value_fallbacks}{follow} = 'shared';
+    is(Plugins::BlissGuidance::Discovery::_validate_descriptor($descriptor), '',
+        'valid provider-defined fallback metadata is accepted');
+}
+
 @Slim::Utils::PluginManager::ENABLED = ('Plugins::GuidanceFixture::Plugin');
 my $discovery = Plugins::BlissGuidance::Discovery::discover();
 is(scalar @{$discovery->{providers}}, 1, 'one provider is discovered');
