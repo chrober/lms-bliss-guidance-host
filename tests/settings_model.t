@@ -149,6 +149,16 @@ is($library->{enabled_desc}, 'Enable this provider for this host.',
     'provider carries its host-rendered enablement help');
 
 my ($playcount) = grep { $_->{key} eq 'playcount_influence' } @{$library->{controls}};
+my $grouped_sections = Plugins::BlissGuidance::SettingsModel::provider_sections({ providers => [{
+    provider_id => 'example', available => 1,
+    descriptor => { controls => [
+        { key => 'first', type => 'integer', minimum => 0, maximum => 100, factory_default => 0, host_overridable => 1, group_label_token => 'EXAMPLE_GROUP_A' },
+        { key => 'second', type => 'integer', minimum => 0, maximum => 100, factory_default => 0, host_overridable => 1, group_label_token => 'EXAMPLE_GROUP_A' },
+        { key => 'third', type => 'integer', minimum => 0, maximum => 100, factory_default => 0, host_overridable => 1, group_label_token => 'EXAMPLE_GROUP_B' },
+    ] }, defaults => {},
+}] }, {}, {});
+is_deeply([map { $_->{group_heading_token} || '' } @{$grouped_sections->[0]{controls}}],
+    ['EXAMPLE_GROUP_A', '', 'EXAMPLE_GROUP_B'], 'headings appear once at each provider-declared group boundary');
 is($playcount->{effective_value}, 0, 'explicit zero remains an effective override');
 is($playcount->{origin}, 'host_override', 'explicit zero has host override provenance');
 is($playcount->{origin_label}, 'Better Call Bliss setting', 'host-localized provenance label is used');

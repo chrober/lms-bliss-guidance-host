@@ -34,6 +34,8 @@ like($partial, qr/type="button"/, 'reset action is a non-submitting button');
 like($partial, qr/control\.origin == 'provider_default'/,
     'reset action is hidden for inherited provider settings');
 like($partial, qr/render_as == 'slider'/, 'partial follows descriptor-declared slider rendering');
+like($partial, qr/control\.group_heading_token\s*\|\s*string/, 'partial renders localized provider-declared group headings');
+like($partial, qr{IF control\.group_heading_token.*?IF loop\.count > 1.*?<hr style="opacity:0\.4" class="sub-sep"/>}s, 'subsequent provider groups use the Bliss Mixer separator');
 like($partial, qr/type="number"/, 'partial supports descriptor-declared number rendering');
 like($partial, qr/control\.enum_options/, 'partial renders provider-declared enum options rather than raw values');
 like($partial, qr/option\.label_token \| string/, 'partial localizes provider-declared enum option labels');
